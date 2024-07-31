@@ -1,0 +1,112 @@
+1)///////////////////////////////////////////////////////////////////////////////
+
+DROP TABLE IF EXISTS Users CASCADE;
+DROP TABLE IF EXISTS Project CASCADE;
+DROP TABLE IF EXISTS Task CASCADE;
+
+CREATE TABLE Users (
+	user_id			int PRIMARY KEY,
+    name		varchar(102) NOT NULL,
+	login           varchar(20) NOT NULL,
+	email           varchar(20) NOT NULL,
+	department		varchar(23) NOT NULL,
+	CONSTRAINT valid_department CHECK (department = 'Производство' OR department = 'Поддержка пользователей' OR department = 'Бухгалтерия' OR department = 'Администрация')
+);
+
+CREATE TABLE Project (
+	project_id			int PRIMARY KEY,
+    project_name		varchar(100) NOT NULL,
+	description			text,
+	data_begin          date NOT NULL,
+	data_end			date
+);
+
+CREATE TABLE Task (
+	task_id		int PRIMARY KEY,
+	header			varchar(100) NOT NULL,
+    priority		int NOT NULL,
+	description		text,
+	state			varchar(50) NOT NULL,
+	CONSTRAINT valid_state CHECK (state = 'Новая' OR state = 'Переоткрыта' OR state = 'Выполняется' OR state = 'Закрыта'),
+	grade			real NOT NULL,
+	expenses		real NOT NULL,
+	to_proj_id int REFERENCES Project (project_id) NOT NULL,
+	user_do_id int REFERENCES users (user_id),
+	user_add_id int REFERENCES users (user_id) NOT NULL
+);
+
+2)///////////////////////////////////////////////////////////////////////////////
+
+INSERT INTO Users 
+VALUES 
+(1, 'Касаткин Артём', 'Артём', 'artem@gmail.com', 'Администрация'),
+(2, 'Петрова София', 'Софа', 'sofia@gmail.com', 'Бухгалтерия'),
+(3, 'Дроздов Федр', 'Федя', 'fedr@gmail.com', 'Администрация'),
+(4, 'Иванова Василина', 'Вася', 'vasilina@gmail.com', 'Бухгалтерия'),
+(5, 'Беркут Алексей', 'Алекс', 'alexey.b@gmail.com', 'Поддержка пользователей'),
+(6, 'Белова Вера', 'Вера', 'vera@gmail.com', 'Производство'),
+(7, 'Макенрой Алексей', 'pr', 'alexey.m@gmail.com', 'Производство');
+
+SELECT * FROM public.users;
+
+3)///////////////////////////////////////////////////////////////////////////////
+
+INSERT INTO Project VALUES (1, 'РТК', '', '2022-01-31');
+INSERT INTO Project 
+VALUES 
+(2, 'СС.Коннект', '', '2023-02-23', '2023-10-31'),
+(3, 'Демо-Сибирь', '' , '2022-05-11', '2023-01-31'),
+(4, 'МВД-Онлайн', '' , '2022-05-22', '2023-03-31');
+INSERT INTO Project VALUES (5, 'Поддержка', '', '2022-06-07');
+
+SELECT * FROM public.Project;
+
+4)///////////////////////////////////////////////////////////////////////////////
+
+INSERT INTO Task (task_id, header, priority, description, state, grade, expenses, to_proj_id, user_do_id, user_add_id)
+	VALUES (1, 'Финансы', 1, '', 'Новая', 3, 0, 1, 4, 4);
+
+INSERT INTO Task (task_id, header, priority, state, grade, expenses, to_proj_id, user_add_id)
+	VALUES (2, 'Звонок', 3, 'Закрыта', 0.1, 0.1, 3, 5);
+	
+INSERT INTO Task (task_id, header, priority, state, grade, expenses, to_proj_id, user_add_id)
+	VALUES (3, 'Набор персонала', 2, 'Выполняется', 24, 6, 4, 1);
+	
+INSERT INTO Task (task_id, header, priority, description, state, grade, expenses, to_proj_id, user_do_id, user_add_id)
+	VALUES (4, 'Отчёт', 4, NULL, 'Новая', 12, 0, 1, 3, 4);
+
+SELECT * FROM public.Task;
+
+5)///////////////////////////////////////////////////////////////////////////////
+
+По умолчанию сортировка по возрастанию.
+
+--Получаем юзеров с кол-вом задач не больше 3
+SELECT name
+  FROM Users u
+ WHERE (SELECT COUNT (*)
+         FROM Task
+         WHERE u.user_id = user_do_id) <= 3
+	ORDER BY user_id;
+
+--Получаем 3 первых задачи с самым высоким приоритетом у юзера 7
+WITH Tempor AS (
+        --Получаем 5 первых строк в таблице
+        SELECT task_id, header, priority, user_do_id
+		   FROM Task
+			 WHERE user_do_id = 7
+		   ORDER BY priority DESC
+		   OFFSET 0 ROWS FETCH NEXT 3 ROWS ONLY
+   )
+   SELECT * FROM Tempor
+   ORDER BY task_id; --Применяем нужную нам сортировку
+	
+--Получаем юзера с первым самым большим приоритетом задачи
+SELECT name
+	  FROM Users u
+	 WHERE (SELECT user_do_id
+			   FROM Task
+			   ORDER BY priority DESC
+			   OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY) = user_id
+		ORDER BY user_id;
+
